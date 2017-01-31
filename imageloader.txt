@@ -1,0 +1,127 @@
+@name imageloader
+@inputs Digi:wirelink
+@persist [URL Image ImageData WantedUrl Prefix]:string Step OldPercent
+@persist MaxRes:vector2
+@persist KeepAspectRatio
+
+if (first()|~Digi) {
+    if (!->Digi) {
+        print("Wire up the digi screen first!")
+        exit()
+    }
+    
+    #Enter image here
+    Image = "http://i.imgur.com/xn4cYl4.png?fb"
+    #Or leave it empty to use chat commands
+    
+    #To use chat commands, aim at the digital screen
+    #that you want to change, then type the prefix
+    #followed immediately by an URL
+    #example:
+    #  >http://i.imgur.com/xn4cYl4.png?fb
+    
+    #Set max res here, image will be downscaled
+    MaxRes = vec2(256,256)
+    
+    #Set to 1 to keep aspect ratio by placing a black background
+    #around the image, if it is not square
+    #If 0, and the image is not square, it will be stretched to fit
+    #the whole digi screen
+    KeepAspectRatio = 1
+    
+    #Change this to your server php script address
+    URL = "http://localhost/e2image/index.php"
+    
+    #Chat command prefix
+    Prefix = ">"
+    
+    function number validImage(STR:string) {
+        return Image:findRE("https?://.*%..+%..+") != 0
+    }
+    
+    if (validImage(Image)) {
+        timer("start",1)
+    }
+    
+    runOnHTTP(1)
+    runOnChat(1)
+} elseif (chatClk(owner())) {
+    if (lastSaid():sub(1,Prefix:length()) == Prefix) {
+        Image = lastSaid():sub(Prefix:length()+1)
+        if (validImage(Image) & (owner():aimEntity() == Digi:entity() | owner():aimEntity() == entity())) {
+            timer("start",1)
+        } else {
+            print("Invalid image specified")
+        }
+        hideChat(1)
+    }
+} elseif (clk("start") | clk("check again")) {
+    stoptimer("step")
+
+    #1048573 = set width
+    #1048572 = set height
+    #1048574 = clear screen
+    #1048569 = color mode
+    #<1048500 = RGB Data
+    
+    if (!httpCanRequest()) {
+        timer("check again",1000)
+        exit()
+    }
+
+    Digi[1048569] = 3 #RRRGGGBBB
+    Digi[1048574] = 1
+    Digi[1048574] = 0
+    
+    function setWidth(Width) {Digi[1048573] = Width}
+    function setHeight(Height) {Digi[1048572] = Height}
+    
+    setWidth(512)
+    setHeight(512)
+    
+    ImageData = ""
+    Step = 0
+    OldPercent = 0
+    WantedUrl = URL+"?image="+httpUrlEncode(Image)+"&maxres="+MaxRes:x()+"x"+MaxRes:y()+"&keepaspect="+KeepAspectRatio
+    
+    #print(WantedUrl)
+    print("Loading image '" + Image + "'")
+    
+    httpRequest(WantedUrl)
+} elseif (httpClk() & httpRequestUrl() == WantedUrl) {
+    ImageData = httpData()
+    
+    local ImageSizeEnd = ImageData:find(";",0)
+    local ImageSizeStr = ImageData:sub(1,ImageSizeEnd-1)
+    ImageData = ImageData:sub(ImageSizeEnd+1)
+    local ImageSize = ImageSizeStr:explode("x")
+    local W = ImageSize[1,string]:toNumber()
+    local H = ImageSize[2,string]:toNumber()
+    setWidth(W)
+    setHeight(H)
+    
+    print("Loading image of size " + W + "x" + H)
+    
+    timer("step",1)
+} elseif (clk("step")) {
+    while(perf()) {
+        local Color = ImageData:sub(Step*9+1,Step*9+9)
+        Digi[Step] = Color:toNumber()
+        Step++
+    }
+    
+    if (Step*9+9 < ImageData:length()) {
+        #Only print status if percent difference is greater than 25%
+        #And only if the image is larger than approx 256x256
+        if (ImageData:length() >= 589824) {
+            local Percent = floor((Step*9+9)/ImageData:length()*100)
+            if (Percent - OldPercent >= 25) {
+                print(Percent + "% done")
+                OldPercent = Percent
+            }
+        }
+        timer("step",10)
+    } else {
+        print("100% done")
+    }
+}
