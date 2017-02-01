@@ -21,7 +21,7 @@
 
 		if (isset($_GET["maxres"])) {
 			$res_str = $_GET["maxres"];
-			$res_expl = split("x",$res_str);
+			$res_expl = explode("x",$res_str);
 			$max_width = is_numeric($res_expl[0]) ? min((int)$res_expl[0],512) : 512;
 			$max_height = is_numeric($res_expl[1]) ? min((int)$res_expl[1],512) : 512;
 
