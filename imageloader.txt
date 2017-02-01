@@ -2,38 +2,88 @@
 @inputs Digi:wirelink
 @persist [URL Image ImageData WantedUrl Prefix]:string Step OldPercent
 @persist MaxRes:vector2
-@persist KeepAspectRatio
+@persist KeepAspectRatio DetectScreenRatio BackgroundColor:vector
+@persist DigiVar:wirelink
 
-if (first()|~Digi) {
-    if (!->Digi) {
-        print("Wire up the digi screen first!")
-        exit()
-    }
+if (first()|dupefinished()|~Digi) {
+    #Source https://github.com/Divran/e2imageloader
+    #########################
+    #Options here
     
     #Enter image here
     Image = "http://i.imgur.com/xn4cYl4.png?fb"
     #Or leave it empty to use chat commands
     
-    #To use chat commands, aim at the digital screen
-    #that you want to change, then type the prefix
-    #followed immediately by an URL
-    #example:
-    #  >http://i.imgur.com/xn4cYl4.png?fb
+    #[  To use chat commands, aim at the digital screen
+        that you want to change, then type the prefix
+        followed immediately by an URL
+        example:
+          >http://i.imgur.com/xn4cYl4.png?fb ]#
     
     #Set max res here, image will be downscaled
-    MaxRes = vec2(256,256)
+    MaxRes = vec2(128,128)
     
-    #Set to 1 to keep aspect ratio by placing a black background
-    #around the image, if it is not square
-    #If 0, and the image is not square, it will be stretched to fit
-    #the whole digi screen
+    #Background color
+    BackgroundColor = vec(255)
+    
+    #[  Set to 1 to keep aspect ratio by placing a black background
+        around the image, if it is not square
+        If 0, and the image is not square, it will be stretched to fit
+        the whole digi screen ]#
     KeepAspectRatio = 1
+    
+    #[  Set to 1 to attempt to detect the ratio of the digital screen.
+        If you are using a digital screen that isn't square shaped
+        this could be useful. However, it probably won't work
+        for every screen, since some props are rotated differently.
+        This option only works is KeepAspectRatio is enabled. ]#
+    DetectScreenRatio = 1
+    #[  If your screen has a different rotation, you can try
+        adjusting this function.]#
+    function vector2 entity:getScreenSize() {
+        local Size = This:boxSize() #Get prop size
+        Size = Size - vec(2) #Remove a bit around the edges
+        
+        #You can add more models here
+        local FlippedModels = table(
+            "models/props/cs_office/tv_plasma.mdl"=1,
+            "models/kobilica/wiremonitorbig.mdl"=1,
+            "models/kobilica/wiremonitorrt.mdl"=1,
+            "models/kobilica/wiremonitorrtbig.mdl"=1,
+            "models/kobilica/wiremonitorsmall.mdl"=1,
+            "models/props_phx/construct/metal_tubex2.mdl"=1
+        )
+        if (FlippedModels[This:model(),number]) {
+            return vec2(Size:y(),Size:z())
+        } else {
+            #Every other model
+            return vec2(Size:x(),Size:y())
+        }
+    }
     
     #Change this to your server php script address
     URL = "http://localhost/e2image/index.php"
     
     #Chat command prefix
     Prefix = ">"
+    
+    ###########################
+    #No more options beyond this point
+    
+    if (!->Digi) {
+        #ifdef entity:wirelink()
+            local E = entity():isWeldedTo()
+            if (E:type() == "gmod_wire_digitalscreen") {
+                DigiVar = entity():isWeldedTo():wirelink()
+            } else {
+                print("Wire up the digi screen first!")
+                exit()
+            }
+        #else
+            print("Wire up the digi screen first!")
+            exit()
+        #endif
+    }
     
     function number validImage(STR:string) {
         return Image:findRE("https?://.*%..+%..+") != 0
@@ -42,6 +92,12 @@ if (first()|~Digi) {
     if (validImage(Image)) {
         timer("start",1)
     }
+    
+    function setWidth(Width) {DigiVar[1048573] = Width}
+    function setHeight(Height) {DigiVar[1048572] = Height}
+    setWidth(512)
+    setHeight(512)
+    DigiVar[1048569] = 3 #RRRGGGBBB
     
     runOnHTTP(1)
     runOnChat(1)
@@ -69,20 +125,28 @@ if (first()|~Digi) {
         exit()
     }
 
-    Digi[1048569] = 3 #RRRGGGBBB
-    Digi[1048574] = 1
-    Digi[1048574] = 0
+    DigiVar[1048574] = 1 #Clear screen
+    DigiVar[1048574] = 0
     
-    function setWidth(Width) {Digi[1048573] = Width}
-    function setHeight(Height) {Digi[1048572] = Height}
-    
-    setWidth(512)
-    setHeight(512)
+    local ScreenRatio = 1
+    if (DetectScreenRatio) {
+        local Size = DigiVar:entity():getScreenSize()
+        ScreenRatio = round(Size:x() / Size:y(),3)
+    }
     
     ImageData = ""
     Step = 0
     OldPercent = 0
-    WantedUrl = URL+"?image="+httpUrlEncode(Image)+"&maxres="+MaxRes:x()+"x"+MaxRes:y()+"&keepaspect="+KeepAspectRatio
+    WantedUrl = URL+
+                "?image="+httpUrlEncode(Image)+
+                "&maxres="+MaxRes:x()+"x"+MaxRes:y()+
+                "&keepaspect="+KeepAspectRatio+
+                "&screenratio="+ScreenRatio+
+                "&bgcolor="+httpUrlEncode(format("%d,%d,%d",
+                                            BackgroundColor:x(),
+                                            BackgroundColor:y(),
+                                            BackgroundColor:z()
+                                        ))
     
     #print(WantedUrl)
     print("Loading image '" + Image + "'")
@@ -106,7 +170,7 @@ if (first()|~Digi) {
 } elseif (clk("step")) {
     while(perf()) {
         local Color = ImageData:sub(Step*9+1,Step*9+9)
-        Digi[Step] = Color:toNumber()
+        DigiVar[Step] = Color:toNumber()
         Step++
     }
     

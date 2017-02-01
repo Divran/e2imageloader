@@ -19,6 +19,22 @@
 		$max_width = 512;
 		$max_height = 512;
 
+		$screen_ratio = 1;
+
+		function clamp($current, $min, $max) {
+			return max($min, min($max, $current));
+		}
+
+		$bg_r = 0; $bg_g = 0; $bg_b = 0;
+		if (isset($_GET["bgcolor"])) {
+			$color_str = $_GET["bgcolor"];
+			$color_expl = explode(",",$color_str);
+
+			$bg_r = is_numeric($color_expl[0]) ? clamp((int)$color_expl[0],0,255) : 0;
+			$bg_g = is_numeric($color_expl[1]) ? clamp((int)$color_expl[1],0,255) : 0;
+			$bg_b = is_numeric($color_expl[2]) ? clamp((int)$color_expl[2],0,255) : 0;
+		}
+
 		if (isset($_GET["maxres"])) {
 			$res_str = $_GET["maxres"];
 			$res_expl = explode("x",$res_str);
@@ -28,10 +44,19 @@
 			if ($max_width < 16) {$max_width = 16;}
 			if ($max_height < 16) {$max_height = 16;}
 		}
+		
 
+		if (isset($_GET["screenratio"])) {
+			$screen_ratio = is_numeric($_GET["screenratio"]) ? (float)$_GET["screenratio"] : 1;
+			$screen_ratio = round(clamp($screen_ratio,0.001,1.999),3);
+		}
+
+		$squaresize = max($max_width,$max_height);
 		$keep_aspect = false;
 		if (isset($_GET["keepaspect"])) {
 			$keep_aspect = ($_GET["keepaspect"] == "1");
+
+			$keep_aspect = $keep_aspect && ($width != $squaresize || $height != $squaresize);
 		}
 
 		if ($image !== false) {
@@ -40,6 +65,17 @@
 			$original_width = $width;
 			$original_height = $height;
 			$scaled = false;
+
+			if ($keep_aspect) {
+				//$image_ratio = $width/$height;
+				if ($screen_ratio > 1) {
+					// This means it's wider than it is large
+					$height *= $screen_ratio;
+				} elseif ($screen_ratio < 1) {
+					// This means it's taller than it is wide
+					$width *= $screen_ratio;
+				}
+			}
 
 			// Downscale image if necessary
 			if ($width > $max_width) {
@@ -64,14 +100,9 @@
 				$x_offset = 0;
 				$y_offset = 0;
 				
-				$squaresize = max($max_width,$max_height);
-				if ($keep_aspect && ($width != $squaresize || $height != $squaresize)) {
+				if ($keep_aspect) {
 					// Create new (square) image
 					$temp = imagecreatetruecolor($squaresize,$squaresize);
-
-					// Fill background
-					$black = imagecolorallocate( $temp, 0,0,0 );
-					imagefill($temp,0,0,$black);
 
 					// Center image
 					$x_offset = $max_width/2-$width/2;
@@ -80,6 +111,10 @@
 					// Create new image
 					$temp = imagecreatetruecolor($width,$height);
 				}
+
+				// Fill background
+				$bg = imagecolorallocate( $temp, $bg_r,$bg_g,$bg_b );
+				imagefill($temp,0,0,$bg);
 
 				// Copy old image onto new image
 				imagecopyresampled(
@@ -92,7 +127,7 @@
 				);
 
 				// If aspect ratio needs to be kept, set size variables now
-				if ($keep_aspect && ($width != $squaresize || $height != $squaresize)) {
+				if ($keep_aspect) {
 					$width = $squaresize;
 					$height = $squaresize;
 				}
