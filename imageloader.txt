@@ -23,11 +23,13 @@ if (first()|dupefinished()|~Digi) {
     #Set max res here, image will be downscaled
     MaxRes = vec2(128,128)
     
-    #Background color
+    #[  Background color.
+        Only works if KeepAspectRatio is enabled
+        Or if the image has transparency ]#
     BackgroundColor = vec(255)
     
-    #[  Set to 1 to keep aspect ratio by placing a black background
-        around the image, if it is not square
+    #[  Set to 1 to keep aspect ratio by placing a background
+        around the edges of the image, if it is not square
         If 0, and the image is not square, it will be stretched to fit
         the whole digi screen ]#
     KeepAspectRatio = 1
@@ -83,6 +85,8 @@ if (first()|dupefinished()|~Digi) {
             print("Wire up the digi screen first!")
             exit()
         #endif
+    } else {
+        DigiVar = Digi
     }
     
     function number validImage(STR:string) {
