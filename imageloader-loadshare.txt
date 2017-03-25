@@ -1,0 +1,37 @@
+@name imageloader-loadshare
+
+@persist ImageData:string
+@persist LoadShare_Start LoadShare_Stop Step
+@persist DigiVar:wirelink
+@persist G:gtable
+
+if (first()) {
+    G = gTable("imageloader",0)    
+    
+    dsSetScope(0)
+    dsJoinGroup("imageloader")
+    dsSend("register","imageloader","derp")
+} elseif (dsClk("stop")) {
+    stoptimer("step")
+} elseif (dsClk("load")) {
+
+    local Data = dsGetTable()
+
+    DigiVar = Data["wirelink",wirelink]
+    ImageData = Data["imagedata",string]
+    LoadShare_Start = Data["start",number]
+    LoadShare_Stop = Data["stop",number]
+    Step = floor(LoadShare_Start / 9)
+    
+    timer("step",1)
+} elseif (clk("step")) {
+    while(perf()) {
+        local Color = ImageData:sub(Step*9+1,Step*9+9)
+        DigiVar[Step] = Color:toNumber()
+        Step++
+    }
+    
+    if (G["stop",number] == 0 & Step*9+9 < LoadShare_Stop) {
+        timer("step",10)
+    }
+}

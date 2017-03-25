@@ -4,6 +4,12 @@
 @persist MaxRes:vector2
 @persist KeepAspectRatio DetectScreenRatio BackgroundColor:vector
 @persist DigiVar:wirelink
+@persist LoadShare:array
+
+@persist LoadShare_Start LoadShare_Stop SendLoadShare_Index
+@persist LoadShare_Output_Start LoadShare_Output_Stop LoadShare_Step
+
+@persist G:gtable
 
 if (first()|dupefinished()|~Digi) {
     #Source https://github.com/Divran/e2imageloader
@@ -11,7 +17,8 @@ if (first()|dupefinished()|~Digi) {
     #Options here
     
     #Enter image here
-    Image = "http://i.imgur.com/xn4cYl4.png?fb"
+    #Image = "http://i.imgur.com/xn4cYl4.png?fb"
+    Image = "http://i.imgur.com/xn4cYl4.png"
     #Or leave it empty to use chat commands
     
     #[  To use chat commands, aim at the digital screen
@@ -90,7 +97,7 @@ if (first()|dupefinished()|~Digi) {
     }
     
     function number validImage(STR:string) {
-        return Image:findRE("https?://.*%..+%..+") != 0
+        return Image != "" & Image:findRE("https?://.*%..+%..+") != 0
     }
     
     if (validImage(Image)) {
@@ -103,8 +110,20 @@ if (first()|dupefinished()|~Digi) {
     setHeight(512)
     DigiVar[1048569] = 3 #RRRGGGBBB
     
+    DigiVar[1048574] = 1 #Clear screen
+    DigiVar[1048574] = 0
+    
     runOnHTTP(1)
     runOnChat(1)
+    
+    G = gTable("imageloader",0)
+    dsSetScope(0)
+    dsJoinGroup("imageloader")
+    LoadShare = dsProbe("imageloader",0)
+    print("Found " + LoadShare:count() + " loadsharing E2s!")
+} elseif (dsClk("register")) {
+    LoadShare = dsProbe("imageloader",0)
+    print("Found " + LoadShare:count() + " loadsharing E2s!")
 } elseif (chatClk(owner())) {
     if (lastSaid():sub(1,Prefix:length()) == Prefix) {
         Image = lastSaid():sub(Prefix:length()+1)
@@ -117,6 +136,12 @@ if (first()|dupefinished()|~Digi) {
     }
 } elseif (clk("start") | clk("check again")) {
     stoptimer("step")
+    
+    #we use a gtable here instead of datasignals
+    #because datasignals cause a lot of ops
+    #which crashes the e2 on servers with low ops caps
+    G["stop",number] = 1
+    #dsSend("stop","imageloader","derp")
 
     #1048573 = set width
     #1048572 = set height
@@ -168,9 +193,47 @@ if (first()|dupefinished()|~Digi) {
     setWidth(W)
     setHeight(H)
     
+    if (LoadShare:count() > 0) {
+        timer("send_loadshare",1)
+        SendLoadShare_Index = 0
+        LoadShare_Step = floor(ImageData:length() / LoadShare:count())
+        LoadShare_Output_Start = 0
+        LoadShare_Output_Stop = LoadShare_Step
+        
+        LoadShare_Start = 0
+        LoadShare_Stop = LoadShare_Step
+    } else {
+        LoadShare_Start = 0
+        LoadShare_Stop = ImageData:length()
+        timer("step",1)
+    }
+    
+    G["stop",number] = 0
+    
     print("Loading image of size " + W + "x" + H)
     
-    timer("step",1)
+} elseif (clk("send_loadshare")) {
+    SendLoadShare_Index++
+
+    local E = LoadShare[SendLoadShare_Index,entity]
+    LoadShare_Output_Start = LoadShare_Output_Stop + 1
+    LoadShare_Output_Stop = LoadShare_Output_Stop + LoadShare_Step
+    dsSendDirect("load",E,table(
+        "wirelink" = DigiVar,
+        "imagedata" = ImageData,
+        "start" = LoadShare_Output_Start,
+        "stop" = LoadShare_Output_Stop
+    ))
+    
+    if (SendLoadShare_Index < LoadShare:count()) {
+        if (perf()) {
+            timer("send_loadshare",1)
+        } else {
+            timer("send_loadshare",40)
+        }
+    } else {
+        timer("step",10)
+    }
 } elseif (clk("step")) {
     while(perf()) {
         local Color = ImageData:sub(Step*9+1,Step*9+9)
@@ -178,7 +241,7 @@ if (first()|dupefinished()|~Digi) {
         Step++
     }
     
-    if (Step*9+9 < ImageData:length()) {
+    if (Step*9+9 < LoadShare_Stop) {
         #Only print status if percent difference is greater than 25%
         #And only if the image is larger than approx 256x256
         if (ImageData:length() >= 589824) {
