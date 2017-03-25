@@ -196,7 +196,7 @@ if (first()|dupefinished()|~Digi) {
     if (LoadShare:count() > 0) {
         timer("send_loadshare",1)
         SendLoadShare_Index = 0
-        LoadShare_Step = floor(ImageData:length() / LoadShare:count())
+        LoadShare_Step = floor(ImageData:length() / (LoadShare:count()-1))
         LoadShare_Output_Start = 0
         LoadShare_Output_Stop = LoadShare_Step
         
