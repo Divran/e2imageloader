@@ -108,7 +108,7 @@ if (first()|dupefinished()|~Digi) {
 } elseif (chatClk(owner())) {
     if (lastSaid():sub(1,Prefix:length()) == Prefix) {
         Image = lastSaid():sub(Prefix:length()+1)
-        if (validImage(Image) & (owner():aimEntity() == Digi:entity() | owner():aimEntity() == entity())) {
+        if (validImage(Image) & (owner():aimEntity() == DigiVar:entity() | owner():aimEntity() == entity())) {
             timer("start",1)
         } else {
             print("Invalid image specified")
