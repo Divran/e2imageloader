@@ -36,7 +36,7 @@ if (first()|dupefinished()|~Digi) {
     BackgroundColor = vec(255)
     
     #[  Set to 1 to keep aspect ratio by placing a background
-        around the edges of the image, if it is not square
+        (change color above) around the image, if it is not square
         If 0, and the image is not square, it will be stretched to fit
         the whole digi screen ]#
     KeepAspectRatio = 1
@@ -45,7 +45,7 @@ if (first()|dupefinished()|~Digi) {
         If you are using a digital screen that isn't square shaped
         this could be useful. However, it probably won't work
         for every screen, since some props are rotated differently.
-        This option only works is KeepAspectRatio is enabled. ]#
+        This option only works if KeepAspectRatio is enabled. ]#
     DetectScreenRatio = 1
     #[  If your screen has a different rotation, you can try
         adjusting this function.]#
@@ -163,6 +163,8 @@ if (first()|dupefinished()|~Digi) {
         ScreenRatio = round(Size:x() / Size:y(),3)
     }
     
+    local RND = randint(1,1000)
+    
     ImageData = ""
     Step = 0
     OldPercent = 0
@@ -175,7 +177,8 @@ if (first()|dupefinished()|~Digi) {
                                             BackgroundColor:x(),
                                             BackgroundColor:y(),
                                             BackgroundColor:z()
-                                        ))
+                                        ))+
+                "&rnd=" + RND
     
     #print(WantedUrl)
     print("Loading image '" + Image + "'")
@@ -196,7 +199,7 @@ if (first()|dupefinished()|~Digi) {
     if (LoadShare:count() > 0) {
         timer("send_loadshare",1)
         SendLoadShare_Index = 0
-        LoadShare_Step = floor(ImageData:length() / (LoadShare:count()-1))
+        LoadShare_Step = floor(ImageData:length() / (LoadShare:count()+1))
         LoadShare_Output_Start = 0
         LoadShare_Output_Stop = LoadShare_Step
         
@@ -213,6 +216,10 @@ if (first()|dupefinished()|~Digi) {
     print("Loading image of size " + W + "x" + H)
     
 } elseif (clk("send_loadshare")) {
+    if (!perf()) {
+        timer("send_loadshare",100)
+        exit()
+    }
     SendLoadShare_Index++
 
     local E = LoadShare[SendLoadShare_Index,entity]
@@ -226,18 +233,16 @@ if (first()|dupefinished()|~Digi) {
     ))
     
     if (SendLoadShare_Index < LoadShare:count()) {
-        if (perf()) {
-            timer("send_loadshare",1)
-        } else {
-            timer("send_loadshare",40)
-        }
+        timer("send_loadshare",1)
     } else {
         timer("step",10)
     }
 } elseif (clk("step")) {
     while(perf()) {
-        local Color = ImageData:sub(Step*9+1,Step*9+9)
-        DigiVar[Step] = Color:toNumber()
+        local Color = ImageData:sub(Step*9+1,Step*9+9):toNumber()
+        if (Color != 0) {
+            DigiVar[Step] = Color
+        }
         Step++
     }
     
