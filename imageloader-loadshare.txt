@@ -26,8 +26,10 @@ if (first()) {
     timer("step",1)
 } elseif (clk("step")) {
     while(perf()) {
-        local Color = ImageData:sub(Step*9+1,Step*9+9)
-        DigiVar[Step] = Color:toNumber()
+        local Color = ImageData:sub(Step*9+1,Step*9+9):toNumber()
+        if (Color != 0) {
+            DigiVar[Step] = Color
+        }
         Step++
     }
     
