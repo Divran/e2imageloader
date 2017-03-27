@@ -1,6 +1,6 @@
 # e2imageloader
 
-This is an E2 that, with the help from the php script, can load any jpg, png or gif (non animated gif only) from anywhere on the internet, and then display it on a digital screen.
+This is an E2 that, with some help from the php script, can load any jpg, png or gif (non animated gif only) from anywhere on the internet, and then display it on a digital screen.
 
 To use it, simply 
 * place the php script on any server you have. Alternatively use something like xampp to host a server on your own computer.
