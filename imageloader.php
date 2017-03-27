@@ -52,6 +52,8 @@
 		}
 
 		$squaresize = max($max_width,$max_height);
+		$squaresize = min($squaresize,max($width,$height));
+		
 		$keep_aspect = false;
 		if (isset($_GET["keepaspect"])) {
 			$keep_aspect = ($_GET["keepaspect"] == "1");
