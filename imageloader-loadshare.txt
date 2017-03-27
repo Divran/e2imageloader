@@ -1,5 +1,7 @@
 @name imageloader-loadshare
 
+#Source https://github.com/Divran/e2imageloader
+
 @persist ImageData:string
 @persist LoadShare_Start LoadShare_Stop Step
 @persist DigiVar:wirelink
