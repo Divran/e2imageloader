@@ -12,7 +12,7 @@ if (first()) {
     
     dsSetScope(0)
     dsJoinGroup("imageloader")
-    dsSend("register","imageloader","derp")
+    dsSend("register","imageloader-main","derp")
 } elseif (dsClk("stop")) {
     stoptimer("step")
 } elseif (dsClk("load")) {
