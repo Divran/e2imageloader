@@ -118,7 +118,7 @@ if (first()|dupefinished()|~Digi) {
     
     G = gTable("imageloader",0)
     dsSetScope(0)
-    dsJoinGroup("imageloader")
+    dsJoinGroup("imageloader-main")
     LoadShare = dsProbe("imageloader",0)
     print("Found " + LoadShare:count() + " loadsharing E2s!")
 } elseif (dsClk("register")) {
