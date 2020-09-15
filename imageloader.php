@@ -38,8 +38,8 @@
 		if (isset($_GET["maxres"])) {
 			$res_str = $_GET["maxres"];
 			$res_expl = explode("x",$res_str);
-			$max_width = is_numeric($res_expl[0]) ? min((int)$res_expl[0],512) : 512;
-			$max_height = is_numeric($res_expl[1]) ? min((int)$res_expl[1],512) : 512;
+			$max_width = is_numeric($res_expl[0]) ? (int)$res_expl[0] : 512;
+			$max_height = is_numeric($res_expl[1]) ? (int)$res_expl[1] : 512;
 
 			if ($max_width < 16) {$max_width = 16;}
 			if ($max_height < 16) {$max_height = 16;}
