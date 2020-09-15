@@ -3,8 +3,8 @@
 #Source https://github.com/Divran/e2imageloader
 
 @persist ImageData:string
-@persist LoadShare_Start LoadShare_Stop Step
-@persist DigiVar:wirelink
+@persist LoadShare_Start LoadShare_Stop Step NumScreenSqrt
+@persist LinkedDigis:array ImageSize:vector2 MaxRes:vector2
 @persist G:gtable
 
 if (first()) {
@@ -19,8 +19,11 @@ if (first()) {
 
     local Data = dsGetTable()
 
-    DigiVar = Data["wirelink",wirelink]
+    LinkedDigis = Data["wirelink",array]
+    NumScreenSqrt = sqrt(LinkedDigis:count())
     ImageData = Data["imagedata",string]
+    ImageSize = Data["imagesize",vector2]
+    MaxRes = Data["maxres",vector2]
     LoadShare_Start = Data["start",number]
     LoadShare_Stop = Data["stop",number]
     Step = floor(LoadShare_Start / 9)
@@ -30,7 +33,13 @@ if (first()) {
     while(perf()) {
         local Color = ImageData:sub(Step*9+1,Step*9+9):toNumber()
         if (Color != 0) {
-            DigiVar[Step] = Color
+            local X = Step % ImageSize:x()
+            local Y = floor(Step / ImageSize:y())
+            
+            local DigiX = floor(X / 512)
+            local DigiY = floor(Y / 512) * NumScreenSqrt
+            
+            LinkedDigis[DigiX+DigiY+1,wirelink][X % 512 + 512*(Y % 512)] = Color
         }
         Step++
     }
