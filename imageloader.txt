@@ -108,7 +108,8 @@ if (first()|dupefinished()|~Digi) {
     function setHeight(Height) {DigiVar[1048572] = Height}
     setWidth(512)
     setHeight(512)
-    DigiVar[1048569] = 3 #RRRGGGBBB
+    DigiVar[1048569] = 2 #2=24-bit, 3=RRRGGGBBB
+    #DigiVar[1048576] = 0
     
     DigiVar[1048574] = 1 #Clear screen
     DigiVar[1048574] = 0
@@ -235,22 +236,22 @@ if (first()|dupefinished()|~Digi) {
     if (SendLoadShare_Index < LoadShare:count()) {
         timer("send_loadshare",1)
     } else {
-        timer("step",10)
+        timer("step",100)
     }
 } elseif (clk("step")) {
     while(perf()) {
-        local Color = ImageData:sub(Step*9+1,Step*9+9):toNumber()
+        local Color = ImageData:sub(Step*6+1,Step*6+6):toNumber(16)
         if (Color != 0) {
             DigiVar[Step] = Color
         }
         Step++
     }
     
-    if (Step*9+9 < LoadShare_Stop) {
+    if (Step*6+6 < LoadShare_Stop) {
         #Only print status if percent difference is greater than 25%
         #And only if the image is larger than approx 256x256
         if (ImageData:length() >= 589824) {
-            local Percent = floor((Step*9+9)/ImageData:length()*100)
+            local Percent = floor((Step*6+6)/ImageData:length()*100)
             if (Percent - OldPercent >= 25) {
                 print(Percent + "% done")
                 OldPercent = Percent
