@@ -23,19 +23,19 @@ if (first()) {
     ImageData = Data["imagedata",string]
     LoadShare_Start = Data["start",number]
     LoadShare_Stop = Data["stop",number]
-    Step = floor(LoadShare_Start / 9)
+    Step = floor(LoadShare_Start / 6)
     
     timer("step",1)
 } elseif (clk("step")) {
     while(perf()) {
-        local Color = ImageData:sub(Step*9+1,Step*9+9):toNumber()
+        local Color = ImageData:sub(Step*6+1,Step*6+6):toNumber(16)
         if (Color != 0) {
             DigiVar[Step] = Color
         }
         Step++
     }
     
-    if (G["stop",number] == 0 & Step*9+9 < LoadShare_Stop) {
+    if (G["stop",number] == 0 & Step*6+6 < LoadShare_Stop) {
         timer("step",10)
     }
 }

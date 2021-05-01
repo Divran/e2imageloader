@@ -53,7 +53,7 @@
 
 		$squaresize = max($max_width,$max_height);
 		$squaresize = min($squaresize,max($width,$height));
-		
+
 		$keep_aspect = false;
 		if (isset($_GET["keepaspect"])) {
 			$keep_aspect = ($_GET["keepaspect"] == "1");
@@ -142,12 +142,18 @@
 			for($y=0;$y<$height;$y++) {
 				for($x=0;$x<$width;$x++) {
 					$rgb = imagecolorat($image,$x,$y);
-					$r = ($rgb >> 16) & 0xFF;
-					$g = ($rgb >> 8) & 0xFF;
-					$b = $rgb & 0xFF;
 
-					// Write colors in digital screen's format of "RRRGGGBBB"
-					$str .= sprintf("%03d%03d%03d",$r,$g,$b);
+					// handles monocolor black & white images
+					/*
+					if ($rgb == 0) {
+						$str .= "ffffff";
+					} elseif ($rgb == 1) {
+						$str .= "000000";
+					}
+					//*/
+
+					// format: 24-bit (hex)
+					$str .= sprintf("%06x",$rgb);
 				}
 			}
 			echo $str;
