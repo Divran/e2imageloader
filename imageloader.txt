@@ -1,17 +1,18 @@
 @name imageloader
-@inputs Digi:wirelink
+@inputs Digi:wirelink Digis:array
 @persist [URL Image ImageData WantedUrl Prefix]:string Step OldPercent
-@persist MaxRes:vector2
+@persist MaxRes:vector2 AutoScaleToNumberOfScreens NumScreenSqrt AutoTeleportScreens ScaleUp
 @persist KeepAspectRatio DetectScreenRatio BackgroundColor:vector
-@persist DigiVar:wirelink
-@persist LoadShare:array
+@persist LoadShare:array ImageSize:vector2
 
 @persist LoadShare_Start LoadShare_Stop SendLoadShare_Index
 @persist LoadShare_Output_Start LoadShare_Output_Stop LoadShare_Step
+@persist LinkedDigis:array 
+@persist DataSize ScreenSize:vector2
 
 @persist G:gtable
 
-if (first()|dupefinished()|~Digi) {
+if (first()|dupefinished()|~Digi|~Digis) {
     #Source https://github.com/Divran/e2imageloader
     #########################
     #Options here
@@ -27,8 +28,26 @@ if (first()|dupefinished()|~Digi) {
         example:
           >http://i.imgur.com/xn4cYl4.png?fb ]#
     
-    #Set max res here, image will be downscaled
+    #Set max res here, image will be downscaled if it's larger
     MaxRes = vec2(128,128)
+    
+    # If this is enabled, will ignore the MaxRes setting above and will instead
+    # automatically scale the max res to 512 x ScreenNum
+    # If only 1 screen is connected, it will use the MaxRes value above
+    AutoScaleToNumberOfScreens = 1
+    
+    # if enabled, teleports all screens into a grid orientation automatically
+    # some screens have strange rotations, so if the angles are wrong, consider turning this
+    # off and positioning them manually instead
+    #ifdef E:setPos(V)
+        AutoTeleportScreens = 1
+    #else
+        AutoTeleportScreens = 0
+    #endif
+    
+    # Automatically scale up the image if it's smaller than the max resolution
+    ScaleUp = 0
+    
     
     #[  Background color.
         Only works if KeepAspectRatio is enabled
@@ -49,7 +68,7 @@ if (first()|dupefinished()|~Digi) {
     DetectScreenRatio = 1
     #[  If your screen has a different rotation, you can try
         adjusting this function.]#
-    function vector2 entity:getScreenSize() {
+    function vector entity:getScreenSize() {
         local Size = This:boxSize() #Get prop size
         Size = Size - vec(2) #Remove a bit around the edges
         
@@ -63,15 +82,15 @@ if (first()|dupefinished()|~Digi) {
             "models/props_phx/construct/metal_tubex2.mdl"=1
         )
         if (FlippedModels[This:model(),number]) {
-            return vec2(Size:y(),Size:z())
+            return vec(Size:y(),Size:z(),1)
         } else {
             #Every other model
-            return vec2(Size:x(),Size:y())
+            return vec(Size:x(),Size:y(),0)
         }
     }
     
     #Change this to your server php script address
-    URL = "http://localhost/e2image/index.php"
+    URL = "http://localhost/a/imageloader.php"
     
     #Chat command prefix
     Prefix = ">"
@@ -79,23 +98,46 @@ if (first()|dupefinished()|~Digi) {
     ###########################
     #No more options beyond this point
     
-    if (!->Digi) {
+    if (!->Digi & !->Digis) {
         #ifdef entity:wirelink()
             local E = entity():isWeldedTo()
             if (E:type() == "gmod_wire_digitalscreen") {
-                DigiVar = entity():isWeldedTo():wirelink()
+                local DigiVar = entity():isWeldedTo():wirelink()
+                LinkedDigis = array(DigiVar)
+                NumScreenSqrt = 1
             } else {
                 print("Wire up the digi screen first!")
                 exit()
             }
+            #[
+            #find all nearby screens
+            findByClass("gmod_wire_digitalscreen")
+            LinkedDigis = findToArray()
+            for(I=1,LinkedDigis:count()) {
+                LinkedDigis[I,wirelink] = Digis[I,entity]:wirelink()
+            }
+            NumScreenSqrt = sqrt(LinkedDigis:count())
+            ]#
         #else
             print("Wire up the digi screen first!")
             exit()
         #endif
-    } else {
-        DigiVar = Digi
+    } elseif (->Digi) {
+        LinkedDigis = array(Digi)
+        NumScreenSqrt = 1
+    } elseif (->Digis) {
+        LinkedDigis = array()
+        for(I=1,Digis:count()) {
+            LinkedDigis[I,wirelink] = Digis[I,entity]:wirelink()
+        }
+        
+        NumScreenSqrt = sqrt(LinkedDigis:count())
     }
     
+    if (AutoScaleToNumberOfScreens & NumScreenSqrt>1) {
+        MaxRes = vec2(512 * NumScreenSqrt)
+    }
+        
     function number validImage(STR:string) {
         return Image != "" & Image:findRE("https?://.*%..+%..+") != 0
     }
@@ -104,19 +146,41 @@ if (first()|dupefinished()|~Digi) {
         timer("start",1)
     }
     
-    function setWidth(Width) {DigiVar[1048573] = Width}
-    function setHeight(Height) {DigiVar[1048572] = Height}
-    setWidth(512)
-    setHeight(512)
-    DigiVar[1048569] = 2 #2=24-bit, 3=RRRGGGBBB
-    #DigiVar[1048576] = 0
+    function setRes(Width,Height) {
+        Width = min(Width / NumScreenSqrt,512)
+        Height = min(Height / NumScreenSqrt,512)
+        
+        #Width = 2^ceil(log2(Width)/log2(2))
+        #Height = 2^ceil(log2(Height)/log2(2))
+        
+        Width = ceil(Width)
+        Height = ceil(Height)
+            
+        for(I=1,LinkedDigis:count()) {
+            LinkedDigis[I,wirelink][1048573] = Width
+            LinkedDigis[I,wirelink][1048572] = Height
+        }
+            
+        ScreenSize = vec2(Width,Height)
+    }
     
-    DigiVar[1048574] = 1 #Clear screen
-    DigiVar[1048574] = 0
+    function setDefaultOptions() {
+        for(I=1,LinkedDigis:count()) {
+            local DigiVar = LinkedDigis[I,wirelink]
+            DigiVar[1048573] = 512 #width
+            DigiVar[1048572] = 512 #height
+            DigiVar[1048569] = 2 #2=24-bit
+            DigiVar[1048574] = 1 #Clear screen
+            DigiVar[1048574] = 0
+        }
+    }
+        
+    setDefaultOptions()
     
     runOnHTTP(1)
     runOnChat(1)
     
+    DataSize = 6
     G = gTable("imageloader",0)
     dsSetScope(0)
     dsJoinGroup("imageloader-main")
@@ -128,13 +192,70 @@ if (first()|dupefinished()|~Digi) {
 } elseif (chatClk(owner())) {
     if (lastSaid():sub(1,Prefix:length()) == Prefix) {
         Image = lastSaid():sub(Prefix:length()+1)
-        if (validImage(Image) & (owner():aimEntity() == DigiVar:entity() | owner():aimEntity() == entity())) {
-            timer("start",1)
+        if (validImage(Image)) {
+            local Aim = owner():aimEntity()
+            local Found = owner():aimEntity() == entity()
+            if (!Found) {
+                for(I=1,LinkedDigis:count()) {
+                    if (LinkedDigis[I,wirelink]:entity() == Aim) {
+                        Found = 1
+                        break
+                    }
+                }
+            }
+            
+            if (Found) {
+                timer("start",1)
+            }
         } else {
             print("Invalid image specified")
         }
         hideChat(1)
     }
+} elseif (httpClk() & httpRequestUrl() == WantedUrl) {
+    ImageData = httpData()
+    
+    local ImageSizeEnd = ImageData:find(";",0)
+    local ImageSizeStr = ImageData:sub(1,ImageSizeEnd-1)
+    ImageData = ImageData:sub(ImageSizeEnd+1)
+    local ImageSizeExp = ImageSizeStr:explode("x")
+    local W = ImageSizeExp[1,string]:toNumber()
+    local H = ImageSizeExp[2,string]:toNumber()
+    ImageSize = vec2(W,H)
+    setRes(W,H)
+        
+    if (LoadShare:count() > 0) {
+        timer("send_loadshare",1)
+        SendLoadShare_Index = 0
+        
+        LoadShare_Step = ImageData:length() / DataSize
+        local Count = LoadShare:count() + 1
+        
+        function number roundUp( N:number, Mult:number ) {
+            if (Mult == 0) {return floor(N)}
+            
+            local R = N % Mult
+            if (R == 0) {return floor(N)}
+            
+            return floor(N + Mult - R)
+        }
+        
+        LoadShare_Step = roundUp(LoadShare_Step,DataSize)
+        
+        LoadShare_Output_Start = 0
+        LoadShare_Output_Stop = LoadShare_Step
+        
+        LoadShare_Start = 0
+        LoadShare_Stop = LoadShare_Step
+    } else {
+        LoadShare_Start = 0
+        LoadShare_Stop = ImageData:length()
+        timer("step",1)
+    }
+    
+    G["stop",number] = 0
+    
+    print("Loading image of size " + W + "x" + H)
 } elseif (clk("start") | clk("check again")) {
     stoptimer("step")
     
@@ -155,13 +276,26 @@ if (first()|dupefinished()|~Digi) {
         exit()
     }
 
-    DigiVar[1048574] = 1 #Clear screen
-    DigiVar[1048574] = 0
+    setDefaultOptions()
     
     local ScreenRatio = 1
     if (DetectScreenRatio) {
-        local Size = DigiVar:entity():getScreenSize()
+        local Size = LinkedDigis[1,wirelink]:entity():getScreenSize()
         ScreenRatio = round(Size:x() / Size:y(),3)
+        if (AutoTeleportScreens) {
+            local IsFlipped = !Size:z()
+            Size += vec(1)
+            local Pos = vec(0,-Size:y(),Size:x()*NumScreenSqrt*0.9)
+            local PosStep = vec(0,Size:y(),0)
+            for(I=1,LinkedDigis:count()) {
+                LinkedDigis[I,wirelink]:entity():setPos(entity():toWorld(Pos))
+                LinkedDigis[I,wirelink]:entity():setAng(entity():toWorld(IsFlipped * ang(90,0,0)))
+                Pos += PosStep
+                if (I % NumScreenSqrt == 0) {
+                    Pos -= vec(0,Size:y()*NumScreenSqrt,Size:x())
+                }
+            }
+        }
     }
     
     local RND = randint(1,1000)
@@ -179,43 +313,12 @@ if (first()|dupefinished()|~Digi) {
                                             BackgroundColor:y(),
                                             BackgroundColor:z()
                                         ))+
+                (ScaleUp ? "&scaleup=1" : "") +
                 "&rnd=" + RND
     
-    #print(WantedUrl)
+    print(WantedUrl)
     print("Loading image '" + Image + "'")
-    
     httpRequest(WantedUrl)
-} elseif (httpClk() & httpRequestUrl() == WantedUrl) {
-    ImageData = httpData()
-    
-    local ImageSizeEnd = ImageData:find(";",0)
-    local ImageSizeStr = ImageData:sub(1,ImageSizeEnd-1)
-    ImageData = ImageData:sub(ImageSizeEnd+1)
-    local ImageSize = ImageSizeStr:explode("x")
-    local W = ImageSize[1,string]:toNumber()
-    local H = ImageSize[2,string]:toNumber()
-    setWidth(W)
-    setHeight(H)
-    
-    if (LoadShare:count() > 0) {
-        timer("send_loadshare",1)
-        SendLoadShare_Index = 0
-        LoadShare_Step = floor(ImageData:length() / (LoadShare:count()+1))
-        LoadShare_Output_Start = 0
-        LoadShare_Output_Stop = LoadShare_Step
-        
-        LoadShare_Start = 0
-        LoadShare_Stop = LoadShare_Step
-    } else {
-        LoadShare_Start = 0
-        LoadShare_Stop = ImageData:length()
-        timer("step",1)
-    }
-    
-    G["stop",number] = 0
-    
-    print("Loading image of size " + W + "x" + H)
-    
 } elseif (clk("send_loadshare")) {
     if (!perf()) {
         timer("send_loadshare",100)
@@ -227,31 +330,45 @@ if (first()|dupefinished()|~Digi) {
     LoadShare_Output_Start = LoadShare_Output_Stop + 1
     LoadShare_Output_Stop = LoadShare_Output_Stop + LoadShare_Step
     dsSendDirect("load",E,table(
-        "wirelink" = DigiVar,
+        "wirelink" = LinkedDigis,
         "imagedata" = ImageData,
+        "imagesize" = ImageSize,
+        "maxres" = MaxRes,
         "start" = LoadShare_Output_Start,
-        "stop" = LoadShare_Output_Stop
+        "stop" = LoadShare_Output_Stop,
+        "screensize" = ScreenSize
     ))
     
     if (SendLoadShare_Index < LoadShare:count()) {
         timer("send_loadshare",1)
     } else {
-        timer("step",100)
+        timer("step",10)
     }
 } elseif (clk("step")) {
     while(perf()) {
-        local Color = ImageData:sub(Step*6+1,Step*6+6):toNumber(16)
+        local Color = ImageData:sub(Step*DataSize+1,Step*DataSize+DataSize):toNumber(16)
         if (Color != 0) {
-            DigiVar[Step] = Color
+            if (NumScreenSqrt == 1) {
+                LinkedDigis[1,wirelink][Step] = Color
+            } else {
+                local X = Step % ImageSize:x()
+                local Y = floor(Step / ImageSize:y())
+                
+                local DigiX = floor(X / ScreenSize:x())
+                local DigiY = floor(Y / ScreenSize:y()) * NumScreenSqrt
+                
+                LinkedDigis[DigiX+DigiY+1,wirelink][X % ScreenSize:x() + ScreenSize:x() * (Y % ScreenSize:y())] = Color
+            }
         }
+        
         Step++
     }
     
-    if (Step*6+6 < LoadShare_Stop) {
+    if (Step <= LoadShare_Stop) {
         #Only print status if percent difference is greater than 25%
         #And only if the image is larger than approx 256x256
         if (ImageData:length() >= 589824) {
-            local Percent = floor((Step*6+6)/ImageData:length()*100)
+            local Percent = floor((Step*DataSize+DataSize)/ImageData:length()*100)
             if (Percent - OldPercent >= 25) {
                 print(Percent + "% done")
                 OldPercent = Percent
