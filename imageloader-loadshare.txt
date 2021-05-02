@@ -3,9 +3,9 @@
 #Source https://github.com/Divran/e2imageloader
 
 @persist ImageData:string
-@persist LoadShare_Start LoadShare_Stop Step
-@persist DigiVar:wirelink
-@persist G:gtable
+@persist LoadShare_Start LoadShare_Stop Step NumScreenSqrt
+@persist LinkedDigis:array ImageSize:vector2 MaxRes:vector2
+@persist G:gtable DataSize ScreenSize:vector2
 
 if (first()) {
     G = gTable("imageloader",0)    
@@ -13,29 +13,44 @@ if (first()) {
     dsSetScope(0)
     dsJoinGroup("imageloader")
     dsSend("register","imageloader-main","derp")
+    DataSize = 6
 } elseif (dsClk("stop")) {
     stoptimer("step")
 } elseif (dsClk("load")) {
 
     local Data = dsGetTable()
 
-    DigiVar = Data["wirelink",wirelink]
+    LinkedDigis = Data["wirelink",array]
+    NumScreenSqrt = sqrt(LinkedDigis:count())
     ImageData = Data["imagedata",string]
+    ImageSize = Data["imagesize",vector2]
+    MaxRes = Data["maxres",vector2]
     LoadShare_Start = Data["start",number]
     LoadShare_Stop = Data["stop",number]
-    Step = floor(LoadShare_Start / 6)
+    ScreenSize = Data["screensize",vector2]
+    Step = LoadShare_Start
     
     timer("step",1)
 } elseif (clk("step")) {
     while(perf()) {
-        local Color = ImageData:sub(Step*6+1,Step*6+6):toNumber(16)
+        local Color = ImageData:sub(Step*DataSize+1,Step*DataSize+DataSize):toNumber()
         if (Color != 0) {
-            DigiVar[Step] = Color
+            if (NumScreenSqrt == 1) {
+                LinkedDigis[1,wirelink][Step] = Color
+            } else {
+                local X = Step % ImageSize:x()
+                local Y = floor(Step / ImageSize:y())
+                
+                local DigiX = floor(X / ScreenSize:x())
+                local DigiY = floor(Y / ScreenSize:y()) * NumScreenSqrt
+                
+                LinkedDigis[DigiX+DigiY+1,wirelink][X % ScreenSize:x() + ScreenSize:x() * (Y % ScreenSize:y())] = Color
+            }
         }
         Step++
     }
     
-    if (G["stop",number] == 0 & Step*6+6 < LoadShare_Stop) {
+    if (G["stop",number] == 0 & Step < LoadShare_Stop) {
         timer("step",10)
     }
 }
