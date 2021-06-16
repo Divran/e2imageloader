@@ -33,7 +33,7 @@ if (first()) {
     timer("step",1)
 } elseif (clk("step")) {
     while(perf()) {
-        local Color = ImageData:sub(Step*DataSize+1,Step*DataSize+DataSize):toNumber()
+        local Color = ImageData:sub(Step*DataSize+1,Step*DataSize+DataSize):toNumber(16)
         if (Color != 0) {
             if (NumScreenSqrt == 1) {
                 LinkedDigis[1,wirelink][Step] = Color
