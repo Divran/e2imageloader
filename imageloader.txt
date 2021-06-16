@@ -251,7 +251,7 @@ if (first()|dupefinished()|~Digi|~Digis) {
         LoadShare_Stop = LoadShare_Step
     } else {
         LoadShare_Start = 0
-        LoadShare_Stop = ImageData:length()
+        LoadShare_Stop = ImageData:length() / DataSize
         timer("step",1)
     }
     
