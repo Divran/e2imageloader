@@ -29,7 +29,7 @@ if (first()|dupefinished()|~Digi|~Digis) {
           >http://i.imgur.com/xn4cYl4.png?fb ]#
     
     #Set max res here, image will be downscaled if it's larger
-    MaxRes = vec2(128,128)
+    MaxRes = vec2(512,512)
     
     # If this is enabled, will ignore the MaxRes setting above and will instead
     # automatically scale the max res to 512 x ScreenNum
@@ -100,6 +100,7 @@ if (first()|dupefinished()|~Digi|~Digis) {
     
     if (!->Digi & !->Digis) {
         #ifdef entity:wirelink()
+            #[
             local E = entity():isWeldedTo()
             if (E:type() == "gmod_wire_digitalscreen") {
                 local DigiVar = entity():isWeldedTo():wirelink()
@@ -109,15 +110,17 @@ if (first()|dupefinished()|~Digi|~Digis) {
                 print("Wire up the digi screen first!")
                 exit()
             }
-            #[
+            ]#
+            ##[
             #find all nearby screens
+            findIncludePlayerProps(owner())
             findByClass("gmod_wire_digitalscreen")
             LinkedDigis = findToArray()
             for(I=1,LinkedDigis:count()) {
-                LinkedDigis[I,wirelink] = Digis[I,entity]:wirelink()
+                LinkedDigis[I,wirelink] = LinkedDigis[I,entity]:wirelink()
             }
             NumScreenSqrt = sqrt(LinkedDigis:count())
-            ]#
+            #]#
         #else
             print("Wire up the digi screen first!")
             exit()
@@ -229,7 +232,6 @@ if (first()|dupefinished()|~Digi|~Digis) {
         SendLoadShare_Index = 0
         
         LoadShare_Step = ImageData:length() / DataSize
-        local Count = LoadShare:count() + 1
         
         function number roundUp( N:number, Mult:number ) {
             if (Mult == 0) {return floor(N)}
@@ -240,7 +242,7 @@ if (first()|dupefinished()|~Digi|~Digis) {
             return floor(N + Mult - R)
         }
         
-        LoadShare_Step = roundUp(LoadShare_Step,DataSize)
+        LoadShare_Step = roundUp(LoadShare_Step / (LoadShare:count() + 1),DataSize)
         
         LoadShare_Output_Start = 0
         LoadShare_Output_Stop = LoadShare_Step
@@ -316,7 +318,7 @@ if (first()|dupefinished()|~Digi|~Digis) {
                 (ScaleUp ? "&scaleup=1" : "") +
                 "&rnd=" + RND
     
-    print(WantedUrl)
+    #print(WantedUrl)
     print("Loading image '" + Image + "'")
     httpRequest(WantedUrl)
 } elseif (clk("send_loadshare")) {
